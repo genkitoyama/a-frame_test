@@ -2,8 +2,8 @@
 
 <head>
     <title>project-name</title>
-    <script src="https://aframe.io/releases/0.8.0/aframe.min.js"></script>
-    <script src="./build.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/0.4.0/aframe.min.js"></script>
+    <script src="./app.js"></script>
     <link rel="stylesheet" href="./css/style.css">
 </head>
 
@@ -12,12 +12,11 @@
         <a-box material="shader:red-shader" position="-3 1.6 -5"></a-box>
         <a-box material="shader:gradation-shader" position="-1 1.6 -5"></a-box>
         <a-box material="shader:time-gradation-shader; time: 0" time-counter position="1 1.6 -5"></a-box>
-        <a-cylinder material="shader:time-transform-shader; time: 0" time-counter position="3 1.6 -5"></a-cylinder>
-
-        <a-plane material="shader:time-gradation-shader; time: 0" height="20" width="10" time-counter position="0 0 -5"></a-plane>
-
-        <!-- <a-camera position="0 2 5"></a-camera> -->
-        <a-sky material="color:#FFC"></a-sky>
+        <!-- <a-cylinder material="shader:time-transform-shader; time: 0" time-counter position="3 1.6 -5"></a-cylinder> -->
+        <!-- <a-plane material="shader:time-gradation-shader; time: 0" height="20" width="10" time-counter position="0 0 -5"></a-plane> -->
+        <!-- <a-camera position="0 0 5"></a-camera> -->
+        <a-entity position="0 1 0" rotation="0 90 0" camera look-controls></a-entity>
+        <a-sky material="shader:rect-animation-shader; time: 0" time-counter theta-start="0" theta-length="180"></a-sky>
     </a-scene>
 </body>
 
