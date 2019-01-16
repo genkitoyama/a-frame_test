@@ -6,7 +6,7 @@ console.warn = function () {};
 require('./components.js');
 require('./shaders.js');
 
-},{"./components.js":2,"./shaders.js":8}],2:[function(require,module,exports){
+},{"./components.js":2,"./shaders.js":9}],2:[function(require,module,exports){
 'use strict';
 
 if (typeof AFRAME === 'undefined') {
@@ -26,6 +26,177 @@ AFRAME.registerComponent('time-counter', {
 
 },{}],3:[function(require,module,exports){
 module.exports = function parse(params){
+      var template = "varying vec2 vUV; // [0.0, 0.0] ~ [1.0, 1.0] \n" +
+"uniform float time; \n" +
+" \n" +
+"mat2 mm2(in float a){float c = cos(a), s = sin(a);return mat2(c,s,-s,c);} \n" +
+" \n" +
+"mat2 m2 = mat2(0.95534, 0.29552, -0.29552, 0.95534); \n" +
+" \n" +
+"float tri(in float x){return clamp(abs(fract(x)-.5),0.01,0.49);} \n" +
+" \n" +
+"vec2 tri2(in vec2 p){return vec2(tri(p.x)+tri(p.y),tri(p.y+tri(p.x)));} \n" +
+" \n" +
+"float triNoise2d(in vec2 p, float spd) \n" +
+"{ \n" +
+"    float z=1.8; \n" +
+"    float z2=2.5; \n" +
+"	float rz = 0.; \n" +
+"    p *= mm2(p.x*0.06); \n" +
+"    vec2 bp = p; \n" +
+"	for (float i=0.; i<5.; i++) \n" +
+"	{ \n" +
+"        vec2 dg = tri2(bp*1.85)*.75; \n" +
+"        dg *= mm2(time*spd); \n" +
+"        p -= dg/z2; \n" +
+" \n" +
+"        bp *= 1.3; \n" +
+"        z2 *= .45; \n" +
+"        z *= .42; \n" +
+"        p *= 1.21 + (rz-1.0)*.02; \n" +
+" \n" +
+"        rz += tri(p.x+tri(p.y))*z; \n" +
+"        p*= -m2; \n" +
+"	} \n" +
+"    return clamp(1./pow(rz*29., 1.3),0.,.55); \n" +
+"} \n" +
+" \n" +
+"float hash21(in vec2 n){ return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453); } \n" +
+" \n" +
+"vec4 aurora(vec3 ro, vec3 rd) \n" +
+"{ \n" +
+"    vec4 col = vec4(0); \n" +
+"    vec4 avgCol = vec4(0); \n" +
+" \n" +
+"    for(float i=0.;i<30.;i++) \n" +
+"    { \n" +
+"      float of = 0.006*hash21(gl_FragCoord.xy)*smoothstep(0.,15., i); \n" +
+"      float pt = ((.8+pow(i,1.4)*.002)-ro.y)/(rd.y*2.+0.3); \n" +
+"      pt -= of; \n" +
+"    	vec3 bpos = ro + pt*rd; \n" +
+"      vec2 p = bpos.zx; \n" +
+"      float rzt = triNoise2d(p, 0.25); \n" +
+"      vec4 col2 = vec4(0,0,0, rzt); \n" +
+"      col2.rgb = (sin(1.-vec3(2.15,-.5, 1.2)+i*0.043)*0.5+0.5)*rzt; \n" +
+"      avgCol =  mix(avgCol, col2, .5); \n" +
+"      col += avgCol * exp2(-i*0.05 - 2.) * smoothstep(0.,5., i); \n" +
+"    } \n" +
+" \n" +
+"    col *= (clamp(rd.y*15.+.5,0.,1.)); \n" +
+" \n" +
+" \n" +
+"    // return clamp(pow(col,vec4(1.3))*1.5,0.,1.); \n" +
+"    // return clamp(pow(col,vec4(1.7))*2.,0.,1.); \n" +
+"    // return clamp(pow(col,vec4(1.5))*2.5,0.,1.); \n" +
+"    // return clamp(pow(col,vec4(1.8))*1.5,0.,1.); \n" +
+" \n" +
+"    // return smoothstep(0.,1.1,pow(col,vec4(1.))*1.5); \n" +
+"    return col*1.8; \n" +
+"    //return pow(col,vec4(1.))*2. \n" +
+"} \n" +
+" \n" +
+" \n" +
+"//-------------------Background and Stars-------------------- \n" +
+" \n" +
+"//From Dave_Hoskins (https://www.shadertoy.com/view/4djSRW) \n" +
+"vec3 hash33(vec3 p) \n" +
+"{ \n" +
+"    p = fract(p * vec3(443.8975,397.2973, 491.1871)); \n" +
+"    p += dot(p.zxy, p.yxz+19.27); \n" +
+"    return fract(vec3(p.x * p.y, p.z*p.x, p.y*p.z)); \n" +
+"} \n" +
+"// https://www.shadertoy.com/view/MlSfzz \n" +
+"vec3 stars(in vec3 p) \n" +
+"{ \n" +
+"    vec3 c = vec3(0.); \n" +
+"    float res = vUV.x * 2.; \n" +
+" \n" +
+"	for (float i=0.;i<2.;i++) \n" +
+"    { \n" +
+"        vec3 q = fract(p*(.15*res))-.5; \n" +
+"        vec3 id = floor(p*(.15*res)); \n" +
+"        vec2 rn = hash33(id).xy; \n" +
+"        float c2 = 1.-smoothstep(0.,.6,length(q)); \n" +
+"        c2 *= step(rn.x,.0005+i*i*0.001); \n" +
+"        c += c2*(mix(vec3(1.0,0.49,0.1),vec3(0.75,0.9,1.),rn.y)*0.1+0.9); \n" +
+"        p *= 1.3; \n" +
+"    } \n" +
+"    return c*c*.8; \n" +
+"} \n" +
+" \n" +
+"vec3 bg(in vec3 rd) \n" +
+"{ \n" +
+"    float sd = dot(normalize(vec3(-0.5, -0.6, 0.9)), rd)*0.5+0.5; \n" +
+"    sd = pow(sd, 5.); \n" +
+"    vec3 col = mix(vec3(0.05,0.1,0.2), vec3(0.1,0.05,0.2), sd); \n" +
+"    return col*.63; \n" +
+"} \n" +
+" \n" +
+"float usin(float t){ \n" +
+"  return 0.5 + 0.5 * sin(t); \n" +
+"} \n" +
+"//----------------------------------------------------------- \n" +
+" \n" +
+"void main() \n" +
+"{ \n" +
+"	// vec2 q = gl_FragCoord.xy / vUV.xy; \n" +
+"    // vec2 p = q - 0.5; \n" +
+"// 	p.x *= resolution.x / resolution.y; \n" +
+" \n" +
+"    vec2 p = (vUV * 2.0) - vec2(1.0, 1.75); \n" +
+"    //p.x *= vUV.x / vUV.y; \n" +
+"    //p.y *= -1.0; \n" +
+" \n" +
+"    p *= 2.0; \n" +
+" \n" +
+"    vec3 ro = vec3(0, 0, -2.7); \n" +
+"    vec3 rd = normalize(vec3(p,2.5)); \n" +
+" \n" +
+"    vec2 mouse = vec2(0.0,20.0); \n" +
+" \n" +
+"    vec2 mo = mouse / vec2(1.0, 1.0) - .5; \n" +
+"    // mo = (mo==vec2(-0.5)) ? mo = vec2(-0.1,0.1) : mo; \n" +
+"    // mo.x *= resolution.x / resolution.y; \n" +
+"    mo.x *= vUV.x / vUV.y; \n" +
+"    rd.yz *= mm2(mo.y); \n" +
+"    // rd.xz *= mm2(mo.x + sin(time*0.05)*0.5); \n" +
+" \n" +
+"    vec3 col = vec3(0.); \n" +
+"    vec3 brd = rd; \n" +
+"    float fade = smoothstep(0.,0.01,abs(brd.y))*0.3 + 0.9; \n" +
+" \n" +
+"    col = bg(rd)*fade; \n" +
+" \n" +
+"    if (rd.y > 0.){ \n" +
+"        vec4 aur = smoothstep(0.,1.25,aurora(ro,rd))*fade; \n" +
+"        col += stars(rd); \n" +
+"        col = col*(1.-aur.a) + aur.rgb; \n" +
+"   } \n" +
+"    else //Reflections \n" +
+"    { \n" +
+"        rd.y = abs(rd.y); \n" +
+"        col = bg(rd)*fade*0.6; \n" +
+"        vec4 aur = smoothstep(0.0,2.5,aurora(ro,rd)); \n" +
+"        col += stars(rd)*0.1; \n" +
+"        col = col*(1.-aur.a) + aur.rgb; \n" +
+"       vec3 pos = ro + ((0.5-ro.y)/rd.y)*rd; \n" +
+"        float nz2 = triNoise2d(pos.xz*vec2(.5,.7), 0.); \n" +
+"        col += mix(vec3(0.2,0.25,0.5)*0.08,vec3(0.3,0.3,0.5)*0.7, nz2*0.4); \n" +
+"    } \n" +
+" \n" +
+"	gl_FragColor = vec4(col, 1.); \n" +
+"} \n" +
+" \n" 
+      params = params || {}
+      for(var key in params) {
+        var matcher = new RegExp("{{"+key+"}}","g")
+        template = template.replace(matcher, params[key])
+      }
+      return template
+    };
+
+},{}],4:[function(require,module,exports){
+module.exports = function parse(params){
       var template = "varying vec2 vUV; \n" +
 " \n" +
 "void main(void) { \n" +
@@ -41,7 +212,7 @@ module.exports = function parse(params){
       return template
     };
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 module.exports = function parse(params){
       var template = "varying vec2 vUV; // [0.0, 0.0] ~ [1.0, 1.0] \n" +
 " \n" +
@@ -59,7 +230,7 @@ module.exports = function parse(params){
       return template
     };
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 module.exports = function parse(params){
       var template = "varying vec2 vUV; // [0.0, 0.0] ~ [1.0, 1.0] \n" +
 "uniform float time; \n" +
@@ -118,7 +289,7 @@ module.exports = function parse(params){
       return template
     };
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 module.exports = function parse(params){
       var template = "varying vec2 vUV; // [0.0, 0.0] ~ [1.0, 1.0] \n" +
 "uniform float time; \n" +
@@ -139,7 +310,7 @@ module.exports = function parse(params){
       return template
     };
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 module.exports = function parse(params){
       var template = "varying vec2 vUV; \n" +
 "uniform float time; \n" +
@@ -163,7 +334,7 @@ module.exports = function parse(params){
       return template
     };
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 'use strict';
 
 if (typeof AFRAME === 'undefined') {
@@ -205,4 +376,12 @@ AFRAME.registerShader('rect-animation-shader', {
     fragmentShader: require('./shader/test.frag')()
 });
 
-},{"./shader/default.vert":3,"./shader/gradation.frag":4,"./shader/test.frag":5,"./shader/time-gradation.frag":6,"./shader/time-transform.vert":7}]},{},[1]);
+AFRAME.registerShader('aurora-shader', {
+    schema: {
+        time: { type: 'float', default: 0.0, is: 'uniform' }
+    },
+    vertexShader: require('./shader/default.vert')(),
+    fragmentShader: require('./shader/aurora.frag')()
+});
+
+},{"./shader/aurora.frag":3,"./shader/default.vert":4,"./shader/gradation.frag":5,"./shader/test.frag":6,"./shader/time-gradation.frag":7,"./shader/time-transform.vert":8}]},{},[1]);
